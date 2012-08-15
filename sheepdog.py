@@ -1,5 +1,6 @@
-__author__ = 'ondrej'
-__all__ = ['SheepdogStorage', 'SheepdogStorageException']
+#!/usr/bin/python -tt
+
+__all__ = ['SheepdogStorage', 'SheepdogError']
 
 import subprocess
 import re
@@ -12,9 +13,14 @@ def wrap_popen(*args):
     p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, err = p.communicate()
     if p.returncode != 0:
-        raise SheepdogStorageException(err)
+        raise SheepdogError(err)
     return out
-    
+
+class SheepdogError(Exception):
+    """
+    Generic Sheepdog exception.
+    """
+
 class SheepdogStorage(object):
     """
     Wrapper for managing Sheepdog VDIs and snapshots
@@ -33,27 +39,27 @@ class SheepdogStorage(object):
         """
         Returns list of VDIs the same way collie vdi list does
 
-        example:
-        {'Alice': {
-           'clone': False,
-           'creation_time': '1344950085',
-           'id': '2',
-           'name': 'Alice',
-           'shared': '0',
-           'size': '21474836480',
-           'snapshot': False,
-           'used': '0',
-           'vdi_id': '15d168'},
-        {'Hello kitty': {
-           'clone': False,
-           'creation_time': '1344951085',
-           'id': '1',
-           'name': 'Hello kitty',
-           'shared': '0',
-           'size': '2199023255552',
-           'snapshot': False,
-           'used': '0',
-           'vdi_id': 'ea5044'}
+        Example:
+            {'Alice': {
+               'clone': False,
+               'creation_time': '1344950085',
+               'id': '2',
+               'name': 'Alice',
+               'shared': '0',
+               'size': '21474836480',
+               'snapshot': False,
+               'used': '0',
+               'vdi_id': '15d168'},
+            'Hello kitty': {
+               'clone': False,
+               'creation_time': '1344951085',
+               'id': '1',
+               'name': 'Hello kitty',
+               'shared': '0',
+               'size': '2199023255552',
+               'snapshot': False,
+               'used': '0',
+               'vdi_id': 'ea5044'}}
         """
         vdi_list_raw = wrap_popen('collie', 'vdi', 'list', '-r')
         lines = RE_LINE.findall(vdi_list_raw)
@@ -97,10 +103,9 @@ class SheepdogStorage(object):
         if snapshot_id is None:
             wrap_popen('collie', 'vdi', 'snapshot', name)
         else:
-            wrap_popen(
-                'collie', 'vdi', 'snapshot', '-s', snapshot_id, name)
+            wrap_popen('collie', 'vdi', 'snapshot', '-s', snapshot_id, name)
 
-    def delete(self, vdi_name, snapshot_id=None):
+    def delete(self, name, snapshot_id=None):
         """
         Deletes a snapshot of a VDI (defined by name) of given snapshot_id
 
@@ -110,8 +115,7 @@ class SheepdogStorage(object):
         if snapshot_id is None:
             wrap_popen('collie', 'vdi', 'delete', name)
         else:
-            wrap_popen(
-            'collie', 'vdi', 'delete', '-s', snapshot_id, vdi_name)
+            wrap_popen('collie', 'vdi', 'delete', '-s', snapshot_id, name)
 
     def clone(self, source_name, snapshot_id, dest_name):
         """
@@ -120,12 +124,15 @@ class SheepdogStorage(object):
         source_name and snapshot_id identifes the source
         dest_name is name of newly created VDI
         """
-        wrap_popen(
-            'collie', 'vdi', 'clone', '-s', snapshot_id, source_name,
-             dest_name)
-
-class SheepdogStorageException(Exception): pass
+        wrap_popen('collie', 'vdi', 'clone', '-s', snapshot_id, source_name,
+                                                   dest_name)
 
 if __name__ == "__main__":
     c = SheepdogStorage()
+    c.create_vdi('Test', '1G')
+    c.resize_vdi('Test', '2G')
+    c.delete('Test')
     c.resize_vdi("Mooo", "10G")
+
+# vim:set sw=4 ts=4 et:
+# -*- coding: utf-8 -*-
